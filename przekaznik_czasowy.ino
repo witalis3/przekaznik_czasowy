@@ -39,27 +39,164 @@
  http://www.arduino.cc/en/Tutorial/LiquidCrystalHelloWorld
 
 */
+/*
+ * simple time relay based on atmega328 (arduino)
+ * by witek sp3jdz
+ * 2018-10-17
+ *
+ */
+
+
 
 // include the library code:
+#include <EEPROM.h>
 #include <LiquidCrystal.h>
+#include <TimerOne.h>
+#include "Bounce2.h"
+#include "przekaznik_czasowy.h"
 
 // initialize the library by associating any needed LCD interface pin
 // with the arduino pin number it is connected to
-const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
+const int rs = A2, en = A3, d4 = A4, d5 = A5, d6 = 2, d7 = 4;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+Bounce key_up = Bounce();
+Bounce key_down = Bounce();
+boolean now_up = false;
+boolean now_down = false;
+unsigned int time_up = 100;
+unsigned int time_down = 100;
+boolean byla_zmiana = false;
+unsigned long czas_zmiany;
 
-void setup() {
-  // set up the LCD's number of columns and rows:
-  lcd.begin(16, 2);
-  // Print a message to the LCD.
-  lcd.print("hello, world!");
+int8_t enc_delta;							// -128 ... 127
+void encode_read()
+{
+	static int8_t last;
+	int8_t nowy;
+	int8_t diff;
+	nowy = 0;
+	if (digitalRead(ENC_A) == LOW)
+		nowy = 3;
+	if (digitalRead(ENC_B) == LOW)
+		nowy ^= 1;								// convert gray to binary
+	diff = last - nowy;						// difference last - nowy
+	if (diff & 1)
+	{							// bit 0 = value (1)
+		last = nowy;							// store nowy as next last
+		enc_delta += (diff & 2) - 1;		// bit 1 = direction (+/-)
+	}
+}
+int8_t encode_read4(void)// read four step encoders; funkcja dla enkodera kwadraturowego
+{
+	int8_t val;
+	noInterrupts();
+	val = enc_delta;
+	enc_delta &= 3;
+	interrupts();
+	return val >> 2;
+}
+void show_time_up()
+{
+	char bufor[8];
+	sprintf(bufor, "%3d ms", time_up);
+	lcd.setCursor(0, 1);
+	lcd.print(bufor);
+}
+void show_time_down()
+{
+	char bufor[8];
+	sprintf(bufor, "%3d ms", time_down);
+	lcd.setCursor(8, 1);
+	lcd.print(bufor);
+}
+void setup()
+{
+#if defined(DEBUG)
+	Serial.begin(1200);
+	Serial.println("time relay starting...");
+#endif
+	byte coldstart;
+	  coldstart = EEPROM.read(0);              // Grab the coldstart byte indicator in EEPROM for
+	                                           // comparison with the COLDSTART_REFERENCE
+	  // Initialize frequency and position memories if first upload, COLDSTART_REF has been modified in ML.h
+	  // since last upload OR if the "Clear All" command has been issued through the Controller Menu functions (0xfe)
+	  if (coldstart != COLDSTART_REF)
+	  {
+
+	    EEPROM.write(TIME_UP_ADDRESS, time_up);           // writing running time up into eeprom
+	    EEPROM.write(TIME_DOWN_ADDRESS, time_down);			// writing running time down into EEPROM
+	    EEPROM.write(0, COLDSTART_REF);               // COLDSTART_REF in first byte indicates all initialized
+#if defined(DEBUG)
+	Serial.println("writing initial values into memory");
+#endif
+	  }
+	  else                                           // EEPROM contains stored data, retrieve the data
+	  {
+	    //EEPROM_readAnything(TLUMIENIE_ADRES, tlumienie);            // read the current attenuation
+	    time_up = EEPROM.read(TIME_UP_ADDRESS);
+	    time_down = EEPROM.read(TIME_DOWN_ADDRESS);
+#if defined(DEBUG)
+	Serial.println("reading from memory: ");
+	Serial.println(time_up);
+	Serial.println(time_down);
+#endif
+
+	  }
+	// set up the LCD's number of columns and rows:
+	lcd.begin(16, 2);
+	// Print a message to the LCD.
+	lcd.print("AKS rulez!");
+	Timer1.initialize(250); // set a timer of length 1ms - odczyt wejść enkodera będzie się odbywał co 1ms
+	Timer1.attachInterrupt(encode_read); // attach the service routine here
+	key_up.attach(TIME_UP_PIN, INPUT_PULLUP);
+	key_down.attach(TIME_DOWN_PIN, INPUT_PULLUP);
+	delay(500);
+	lcd.print("czas wl czas wyl");
 }
 
-void loop() {
-  // set the cursor to column 0, line 1
-  // (note: line 1 is the second row, since counting begins with 0):
-  lcd.setCursor(0, 1);
-  // print the number of seconds since reset:
-  lcd.print(millis() / 1000);
+void loop()
+{
+	key_up.update();
+	if (key_up.read() == LOW)
+	{
+		now_up = true;
+		now_down = false;
+	}
+	key_down.update();
+	if (key_down.read() == LOW)
+	{
+		now_down = true;
+		now_up = false;
+	}
+	int enc = encode_read4();
+	if (enc != 0)
+	{
+		if (now_up)
+		{
+			byla_zmiana = true;
+			time_up = time_up + enc;
+			show_time_up();
+			czas_zmiany = millis();
+		}
+		if (now_down)
+		{
+			byla_zmiana = true;
+			time_down = time_down + enc;
+			show_time_down();
+			czas_zmiany = millis();
+		}
+	}
+	if (byla_zmiana && (millis() - czas_zmiany > CZAS_REAKCJI))
+	{
+	    EEPROM.write(TIME_UP_ADDRESS, time_up);           // writing running time up into eeprom
+	    EEPROM.write(TIME_DOWN_ADDRESS, time_down);			// writing running time down into EEPROM
+		byla_zmiana = false;
+#if defined(DEBUG)
+		Serial.println("writing current timings to EEPROM: ");
+		Serial.println(time_up);
+		Serial.println(time_down);
+#endif
+	}
+
 }
 
