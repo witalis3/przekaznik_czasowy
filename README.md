@@ -1,5 +1,6 @@
 # przekaznik_czasowy
 Simple time relay
+
 Time relay has following feature:
 - changing time by encoder when output is high
 - changing time by encoder when output is low
