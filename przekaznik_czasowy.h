@@ -8,10 +8,12 @@
 #ifndef PRZEKAZNIK_CZASOWY_H_
 #define PRZEKAZNIK_CZASOWY_H_
 
-#define ENC_A 9						// encoder PIN
-#define ENC_B 10					// encoder PIN
+//#define DEBUG
+#define ENC_A_PIN 10						// encoder PIN
+#define ENC_B_PIN 9					// encoder PIN
 #define TIME_UP_PIN A0				// time up button PIN
 #define TIME_DOWN_PIN 7				// time down button PIN
+#define OUTPUT_PIN 5				// output PIN - driving power MOSFET
 #define COLDSTART_REF      0x12   // When started, the firmware examines this "Serial Number
                                   // and enforces factory reset to clear all
                                   // settings, as well as frequency and position memories.
@@ -25,6 +27,7 @@
 #define TIME_UP_ADDRESS 1
 #define TIME_DOWN_ADDRESS 5
 #define CZAS_REAKCJI 1000		// the time [ms] after which the writing into EEPROM takes place
+#define TIME_MIN 40					// minimal value of time_up and time_down in ms
 
 void show_time_up();
 void show_time_down();

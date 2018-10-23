@@ -45,7 +45,17 @@
  * 2018-10-17
  *
  */
-
+/*
+ * ToDo
+ * - ok obsługa wyjścia
+ * - ok sprawdzenie DEBUG
+ * - blokada enkodera po pewnym czasie
+ * - ok sygnalizowane bipem
+ * - ok naciśnięcie klawisza - sygnalizacja dźwiękowa
+ * - ok ograniczenie czasów min-max (np. 40-999)
+ * - polskie litery na wł i wył (ł)
+ * - element wykonawczy - IRFZ44
+ */
 
 
 // include the library code:
@@ -67,23 +77,43 @@ unsigned int time_up = 100;
 unsigned int time_down = 100;
 boolean byla_zmiana = false;
 unsigned long czas_zmiany;
+unsigned long time_start;		// start time of change
 
 int8_t enc_delta;							// -128 ... 127
 void encode_read()
 {
 	static int8_t last;
+	static boolean output_is_on;
 	int8_t nowy;
 	int8_t diff;
 	nowy = 0;
-	if (digitalRead(ENC_A) == LOW)
+	if (digitalRead(ENC_A_PIN) == LOW)
 		nowy = 3;
-	if (digitalRead(ENC_B) == LOW)
+	if (digitalRead(ENC_B_PIN) == LOW)
 		nowy ^= 1;								// convert gray to binary
 	diff = last - nowy;						// difference last - nowy
 	if (diff & 1)
 	{							// bit 0 = value (1)
 		last = nowy;							// store nowy as next last
 		enc_delta += (diff & 2) - 1;		// bit 1 = direction (+/-)
+	}
+	if (output_is_on)
+	{
+		if (millis() - time_start >= time_up)
+		{
+			digitalWrite(OUTPUT_PIN, LOW);
+			time_start = millis();
+			output_is_on = false;
+		}
+	}
+	else
+	{
+		if (millis() - time_start >= time_down)
+		{
+			digitalWrite(OUTPUT_PIN, HIGH);
+			time_start = millis();
+			output_is_on = true;
+		}
 	}
 }
 int8_t encode_read4(void)// read four step encoders; funkcja dla enkodera kwadraturowego
@@ -146,12 +176,22 @@ void setup()
 	lcd.begin(16, 2);
 	// Print a message to the LCD.
 	lcd.print("AKS rulez!");
-	Timer1.initialize(250); // set a timer of length 1ms - odczyt wejść enkodera będzie się odbywał co 1ms
-	Timer1.attachInterrupt(encode_read); // attach the service routine here
+	pinMode(ENC_A_PIN, INPUT_PULLUP);					// wejście enkodera encoder input init
+	pinMode(ENC_B_PIN, INPUT_PULLUP);					// wejście enkodera encoder input init
+	pinMode(TIME_UP_PIN, INPUT_PULLUP);					// button up init
+	pinMode(TIME_DOWN_PIN, INPUT_PULLUP);				// button down init
+	pinMode(OUTPUT_PIN, OUTPUT);						// output
+	digitalWrite(OUTPUT_PIN, LOW);
 	key_up.attach(TIME_UP_PIN, INPUT_PULLUP);
 	key_down.attach(TIME_DOWN_PIN, INPUT_PULLUP);
-	delay(500);
+	delay(2000);
+	time_start = millis();
+	Timer1.initialize(250); // set a timer of length 250us - odczyt wejść enkodera będzie się odbywał co 0,25ms
+	Timer1.attachInterrupt(encode_read); // attach the service routine here
+	lcd.setCursor(0, 0);
 	lcd.print("czas wl czas wyl");
+	show_time_up();
+	show_time_down();
 }
 
 void loop()
@@ -161,12 +201,14 @@ void loop()
 	{
 		now_up = true;
 		now_down = false;
+		tone(3, 1000, 100);
 	}
 	key_down.update();
 	if (key_down.read() == LOW)
 	{
 		now_down = true;
 		now_up = false;
+		tone(3, 1000, 100);
 	}
 	int enc = encode_read4();
 	if (enc != 0)
@@ -175,6 +217,7 @@ void loop()
 		{
 			byla_zmiana = true;
 			time_up = time_up + enc;
+			time_up = constrain(time_up, TIME_MIN, 999);
 			show_time_up();
 			czas_zmiany = millis();
 		}
@@ -182,6 +225,7 @@ void loop()
 		{
 			byla_zmiana = true;
 			time_down = time_down + enc;
+			time_down = constrain(time_down, TIME_MIN, 999);
 			show_time_down();
 			czas_zmiany = millis();
 		}
@@ -191,6 +235,7 @@ void loop()
 	    EEPROM.write(TIME_UP_ADDRESS, time_up);           // writing running time up into eeprom
 	    EEPROM.write(TIME_DOWN_ADDRESS, time_down);			// writing running time down into EEPROM
 		byla_zmiana = false;
+		tone(3, 1000, 300);
 #if defined(DEBUG)
 		Serial.println("writing current timings to EEPROM: ");
 		Serial.println(time_up);
