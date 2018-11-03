@@ -49,12 +49,11 @@
  * ToDo
  * - ok obsługa wyjścia
  * - ok sprawdzenie DEBUG
- * - blokada enkodera po pewnym czasie
+ * - ok blokada enkodera po pewnym czasie
  * - ok sygnalizowane bipem
  * - ok naciśnięcie klawisza - sygnalizacja dźwiękowa
  * - ok ograniczenie czasów min-max (np. 40-999)
- * - polskie litery na wł i wył (ł)
- * - element wykonawczy - IRFZ44
+ * - ok polskie litery na wł i wył (ł)
  */
 
 
@@ -78,6 +77,11 @@ unsigned int time_down = 100;
 boolean byla_zmiana = false;
 unsigned long czas_zmiany;
 unsigned long time_start;		// start time of change
+// ł
+byte el[8] =
+{
+		0x0C, 0x04, 0x06, 0x04, 0x0C, 0x04, 0x0E, 0x00
+};
 
 int8_t enc_delta;							// -128 ... 127
 void encode_read()
@@ -174,6 +178,8 @@ void setup()
 	  }
 	// set up the LCD's number of columns and rows:
 	lcd.begin(16, 2);
+	// create a new character ł
+	lcd.createChar(3, el);
 	// Print a message to the LCD.
 	lcd.print("AKS rulez!");
 	pinMode(ENC_A_PIN, INPUT_PULLUP);					// wejście enkodera encoder input init
@@ -189,7 +195,10 @@ void setup()
 	Timer1.initialize(250); // set a timer of length 250us - odczyt wejść enkodera będzie się odbywał co 0,25ms
 	Timer1.attachInterrupt(encode_read); // attach the service routine here
 	lcd.setCursor(0, 0);
-	lcd.print("czas wl czas wyl");
+	lcd.print("czas w");
+	lcd.write(3);
+	lcd.print(" czas wy");
+	lcd.write(3);
 	show_time_up();
 	show_time_down();
 }
@@ -235,6 +244,9 @@ void loop()
 	    EEPROM.write(TIME_UP_ADDRESS, time_up);           // writing running time up into eeprom
 	    EEPROM.write(TIME_DOWN_ADDRESS, time_down);			// writing running time down into EEPROM
 		byla_zmiana = false;
+		// blokada enkodera (przed przypadkową zmianą czasu)
+		now_up = false;
+		now_down = false;
 		tone(3, 1000, 300);
 #if defined(DEBUG)
 		Serial.println("writing current timings to EEPROM: ");
