@@ -181,6 +181,7 @@ void setup()
 	// create a new character ł
 	lcd.createChar(3, el);
 	// Print a message to the LCD.
+	lcd.setCursor(0, 0);
 	lcd.print("AKS rulez!");
 	pinMode(ENC_A_PIN, INPUT_PULLUP);					// wejście enkodera encoder input init
 	pinMode(ENC_B_PIN, INPUT_PULLUP);					// wejście enkodera encoder input init

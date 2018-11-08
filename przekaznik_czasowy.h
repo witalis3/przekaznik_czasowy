@@ -27,7 +27,7 @@
 #define TIME_UP_ADDRESS 1
 #define TIME_DOWN_ADDRESS 5
 #define CZAS_REAKCJI 1000		// the time [ms] after which the writing into EEPROM takes place
-#define TIME_MIN 40					// minimal value of time_up and time_down in ms
+#define TIME_MIN 25					// minimal value of time_up and time_down in ms
 
 void show_time_up();
 void show_time_down();
