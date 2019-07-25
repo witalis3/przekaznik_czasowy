@@ -106,6 +106,10 @@ void encode_read()
 		if (millis() - time_start >= time_up)
 		{
 			digitalWrite(OUTPUT_PIN, LOW);
+#ifndef DEBUG
+			digitalWrite(WY_H_BRIDGE_1, LOW);
+			digitalWrite(WY_H_BRIDGE_2, LOW);
+#endif
 			time_start = millis();
 			output_is_on = false;
 		}
@@ -115,6 +119,10 @@ void encode_read()
 		if (millis() - time_start >= time_down)
 		{
 			digitalWrite(OUTPUT_PIN, HIGH);
+#ifndef DEBUG
+			digitalWrite(WY_H_BRIDGE_1, HIGH);
+			digitalWrite(WY_H_BRIDGE_2, HIGH);
+#endif
 			time_start = millis();
 			output_is_on = true;
 		}
@@ -189,6 +197,13 @@ void setup()
 	pinMode(TIME_DOWN_PIN, INPUT_PULLUP);				// button down init
 	pinMode(OUTPUT_PIN, OUTPUT);						// output
 	digitalWrite(OUTPUT_PIN, LOW);
+#ifndef DEBUG
+	// podczas debugowania wyjścia układu mostkowego nie są używane - wyjście RS
+	pinMode(WY_H_BRIDGE_1, OUTPUT);
+	pinMode(WY_H_BRIDGE_2, OUTPUT);
+	digitalWrite(WY_H_BRIDGE_1, LOW);
+	digitalWrite(WY_H_BRIDGE_2, LOW);
+#endif
 	key_up.attach(TIME_UP_PIN, INPUT_PULLUP);
 	key_down.attach(TIME_DOWN_PIN, INPUT_PULLUP);
 	delay(2000);
